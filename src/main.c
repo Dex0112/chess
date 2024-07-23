@@ -1,4 +1,4 @@
-#include <SDL2/SDL_events.h>
+# include <SDL2/SDL_events.h>
 #include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
 #include <stdio.h>
@@ -39,6 +39,7 @@ int main() {
     bool running = true;
     
     SDL_SetRenderDrawColor(renderer, 122, 122, 122, 255);
+    SDL_RenderClear(renderer);
 
     render_piece(renderer, KING);
     render_piece(renderer, QUEEN);
@@ -97,14 +98,14 @@ void render_piece(SDL_Renderer *renderer, PieceType piece_type) {
 
 
     SDL_Rect white_position = {
-        100 * piece_type + 5 * piece_type,
+        100 * piece_type,
         0,
         100,
         100,
     };
 
     SDL_Rect black_position = {
-        100 * piece_type + 25,
+        100 * piece_type,
         200,
         100,
         100,
@@ -112,6 +113,25 @@ void render_piece(SDL_Renderer *renderer, PieceType piece_type) {
 
     SDL_RenderCopy(renderer, sprite_sheet, &white_s_rect, &white_position);
     SDL_RenderCopy(renderer, sprite_sheet, &black_s_rect, &black_position);
+
+    // Render a dot where the center should be
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+
+    SDL_Rect rect = {
+        white_position.x,
+        white_position.y,
+        15,
+        15
+    };
+
+    rect.x -= rect.w / 2;
+    rect.y -= rect.h / 2;
+
+    rect.x += white_position.w / 2;
+    rect.y += white_position.h / 2;
+
+    SDL_RenderFillRect(renderer, &rect);
+    
 
     SDL_DestroyTexture(sprite_sheet);
 }
