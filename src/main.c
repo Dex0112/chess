@@ -47,6 +47,7 @@ int main() {
     render_piece(renderer, KNIGHT);
     render_piece(renderer, ROOK);
     render_piece(renderer, PAWN);
+    // Render board and make a game 
 
     SDL_RenderPresent(renderer);
 
