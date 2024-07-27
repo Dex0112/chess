@@ -33,7 +33,7 @@ void load_fen(Board *board, char *fen) {
             break;
         }
 
-        PieceType piece_type;
+        PieceType piece_type = NONE;
         Team team = isupper(c) ? WHITE : BLACK;
 
         switch (tolower(c)) {
