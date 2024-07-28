@@ -27,7 +27,7 @@ void game(SDL_Renderer *renderer) {
         .spritesheet = IMG_LoadTexture(renderer, get_path("../gfx/Pieces.png")),
         .square = IMG_LoadTexture(renderer, get_path("../gfx/Square.png")),
         .white = {255, 255, 255, 255},
-        .black = {0, 0, 0, 255}};
+        .black = {50, 50, 50, 255}};
 
     Board board = {
         .width = 8,
@@ -62,7 +62,7 @@ void render_board(SDL_Renderer *renderer, const Resources *resources,
     for (int x = 0; x < board->width; x++) {
         for (int y = 0; y < board->height; y++) {
             SDL_Color color =
-                (x + y) % 2 == 0 ? resources->black : resources->white;
+                (x + y) % 2 == 0 ? resources->white : resources->black;
 
             SDL_SetTextureColorMod(resources->square, color.r, color.g,
                                    color.b);
@@ -70,17 +70,35 @@ void render_board(SDL_Renderer *renderer, const Resources *resources,
             int cell_width = WINDOW_WIDTH / board->width;
             int cell_height = WINDOW_HEIGHT / board->height;
 
-            SDL_Rect rect = {.x = x * cell_width,
-                             .y = y * cell_height,
-                             .w = cell_width,
-                             .h = cell_height};
+            SDL_Rect square_rect = {.x = x * cell_width,
+                                    .y = y * cell_height,
+                                    .w = cell_width,
+                                    .h = cell_height};
 
-            SDL_RenderCopy(renderer, resources->square, NULL, &rect);
+            SDL_RenderCopy(renderer, resources->square, NULL, &square_rect);
 
             // This might cause a segfault but I think I fixed it
-            // int index = x + y * board->width;
-            // if (board->grid[index].type == NONE) continue;
+            int index = x + y * board->width;
+
+            if (board->grid[index].type == NONE) continue;
+
             // Render Piece
+            int width;
+            int height;
+
+            SDL_QueryTexture(resources->spritesheet, NULL, NULL, &width,
+                             &height);
+
+            width /= 6;
+            height /= 2;
+
+            SDL_Rect s_rect = {width * board->grid[index].type,
+                               height * board->grid[index].team, width, height};
+
+            SDL_Rect rect = {x * cell_width, y * cell_height, cell_width,
+                             cell_height};
+
+            SDL_RenderCopy(renderer, resources->spritesheet, &s_rect, &rect);
         }
     }
 }

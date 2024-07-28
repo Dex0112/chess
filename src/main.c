@@ -4,7 +4,6 @@
 #include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -17,10 +16,7 @@ int main() {
 
     SDL_Init(SDL_INIT_VIDEO);
 
-    if (IMG_Init(IMG_INIT_PNG) == 0) {
-        printf("IMG_Init: %s\n", IMG_GetError());
-        return -1;
-    }
+    IMG_Init(IMG_INIT_PNG);
 
     SDL_Window *window = SDL_CreateWindow("Cnake", SDL_WINDOWPOS_CENTERED,
                                           SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH,
