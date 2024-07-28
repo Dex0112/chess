@@ -10,6 +10,7 @@
 
 #include "chess.h"
 #include "constants.h"
+#include "path.h"
 
 typedef struct {
     SDL_Texture *spritesheet;
@@ -22,11 +23,9 @@ void render_board(SDL_Renderer *renderer, const Resources *resources,
                   const Board *board);
 
 void game(SDL_Renderer *renderer) {
-    printf("Entering Game\n");
-
     Resources resources = {
-        .spritesheet = IMG_LoadTexture(renderer, "../gfx/Pieces.png"),
-        .square = IMG_LoadTexture(renderer, "../gfx/Square.png"),
+        .spritesheet = IMG_LoadTexture(renderer, get_path("../gfx/Pieces.png")),
+        .square = IMG_LoadTexture(renderer, get_path("../gfx/Square.png")),
         .white = {255, 255, 255, 255},
         .black = {0, 0, 0, 255}};
 

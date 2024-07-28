@@ -5,11 +5,16 @@
 #include <SDL2/SDL_render.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "constants.h"
+#include "path.h"
 #include "game.h"
 
 int main() {
+    init_path();
+
     SDL_Init(SDL_INIT_VIDEO);
 
     if (IMG_Init(IMG_INIT_PNG) == 0) {
