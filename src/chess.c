@@ -3,12 +3,14 @@
 #include <ctype.h>
 #include <malloc.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 // Example fen
 // "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 void load_fen(Board *board, char *fen) {
     Piece *grid = (Piece *)malloc(board->width * board->height * sizeof(Piece));
+
     if (grid == NULL) {
         fprintf(stderr, "Memory allocation failed\n");
         return;
@@ -22,9 +24,13 @@ void load_fen(Board *board, char *fen) {
 
     int x = 0;
     int y = 0;
+    int i = -1;
 
-    for (int i = 0; i < strlen(fen); i++) {
+    while (fen[i] != ' ') {
+        i++;
+
         int index = x + y * board->width;
+
         char c = fen[i];
 
         if (isdigit(c)) {
@@ -36,10 +42,6 @@ void load_fen(Board *board, char *fen) {
             x = 0;
             y++;
             continue;
-        }
-
-        if (c == ' ') {
-            break;
         }
 
         PieceType piece_type = NONE;
@@ -70,5 +72,15 @@ void load_fen(Board *board, char *fen) {
         x++;
     }
 
+    // use the index to check the rest of the strin
+
     board->grid = grid;
 }
+
+void get_coordinates(int x, int y, char *file, int *rank) {
+    *(file) = 'a' + x;
+
+    *(rank) = y + 1;
+}
+
+void free_board(Board *board) { free(board->grid); }

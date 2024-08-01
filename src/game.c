@@ -2,6 +2,7 @@
 
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_image.h>
+#include <SDL2/SDL_mouse.h>
 #include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_timer.h>
@@ -19,8 +20,12 @@ typedef struct {
     SDL_Color black;
 } Resources;
 
+void screen_to_board_coords(const Board* board, int x, int y, int *new_x, int *new_y);
+
 void render_board(SDL_Renderer *renderer, const Resources *resources,
                   const Board *board);
+
+void free_resources(Resources *);
 
 void game(SDL_Renderer *renderer) {
     Resources resources = {
@@ -45,6 +50,17 @@ void game(SDL_Renderer *renderer) {
                 case SDL_QUIT:
                     running = false;
                     break;
+                case SDL_MOUSEBUTTONDOWN:
+                    printf("Click Detect!\n");
+                    int x, y;
+
+                    SDL_GetMouseState(&x, &y);
+
+                    screen_to_board_coords(&board, x, y, &x, &y);
+
+                    printf("%d, %d\n", x, y);
+
+                    break;
             }
         }
 
@@ -57,6 +73,12 @@ void game(SDL_Renderer *renderer) {
     }
 }
 
+void screen_to_board_coords(const Board* board, int x, int y, int *new_x, int *new_y) {
+     *new_x = x / (WINDOW_WIDTH / board->width);
+     *new_y = y / (WINDOW_HEIGHT / board->height);
+}
+
+// This needs refactored asap
 void render_board(SDL_Renderer *renderer, const Resources *resources,
                   const Board *board) {
     for (int x = 0; x < board->width; x++) {
@@ -77,12 +99,10 @@ void render_board(SDL_Renderer *renderer, const Resources *resources,
 
             SDL_RenderCopy(renderer, resources->square, NULL, &square_rect);
 
-            // This might cause a segfault but I think I fixed it
             int index = x + y * board->width;
 
             if (board->grid[index].type == NONE) continue;
 
-            // Render Piece
             int width;
             int height;
 
@@ -101,4 +121,9 @@ void render_board(SDL_Renderer *renderer, const Resources *resources,
             SDL_RenderCopy(renderer, resources->spritesheet, &s_rect, &rect);
         }
     }
+}
+
+void free_resources(Resources *resources) {
+    SDL_DestroyTexture(resources->spritesheet);
+    SDL_DestroyTexture(resources->square);
 }

@@ -1,6 +1,8 @@
 #ifndef CHESS
 #define CHESS
 
+#include <stdbool.h>
+
 typedef enum {
     WHITE = 0,
     BLACK = 1,
@@ -24,20 +26,37 @@ typedef struct {
 typedef struct {
     unsigned int width;
     unsigned int height;
+
+    bool white_castle_q;
+    bool white_castle_k;
+    bool black_castle_q;
+    bool black_castle_k;
+
+    Team turn;
     // Position for en passent
-    // bool white_castle_q (queen side)
-    // bool white_castle_k (king side)
+
+    // Since or captur or pawn move
+    // int half_moves;
+
+    // This is full moves and increments after blacks moves
+    // int move_index;
+
     Piece *grid;
 } Board;
+
+typedef struct move_data {
+    Piece *target_piece;
+    Piece *taken_piece;
+    // Used for castling
+    struct move_data *additional_move;
+} MoveData;
 
 #define BOARD_WIDTH 8
 #define BOARD_HEIGHT 8
 
-// Load this but as a file and not as code 
 // https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation
 #define STARTING_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
-// Implement support for chess notation
 // Fenstrings
 // Implement support for undo/redo moves
 // I want to implement an AI api kinda deal so a generic make move function
@@ -47,6 +66,10 @@ typedef struct {
 void load_fen(Board *board, char *fen);
 
 char *generate_fen(Board);
+
+void free_board(Board *board);
+
+void get_coordinates(int x, int y, char *file, int *rank);
 
 // Make move
 // Get moves
