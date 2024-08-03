@@ -20,10 +20,19 @@ typedef struct {
     SDL_Color black;
 } Resources;
 
-void screen_to_board_coords(const Board* board, int x, int y, int *new_x, int *new_y);
+// Idk if it would go in this struct but an SDL_Rect for the whole board area so
+// it doesn't take up the whole screen
+typedef struct {
+    Resources resources;
+    Board board;
+    bool is_dragging;
+    int *selected_x, *selected_y;
+} GameState;
 
-void render_board(SDL_Renderer *renderer, const Resources *resources,
-                  const Board *board);
+void screen_to_board_coords(const Board *board, int x, int y, int *new_x,
+                            int *new_y);
+
+void render_game_state(SDL_Renderer *renderer, const GameState *game_data);
 
 void free_resources(Resources *);
 
@@ -41,6 +50,14 @@ void game(SDL_Renderer *renderer) {
 
     load_fen(&board, STARTING_FEN);
 
+    GameState data = {
+        .resources = resources,
+        .board = board,
+        .is_dragging = false,
+        .selected_x = NULL,
+        .selected_y = NULL,
+    };
+
     bool running = true;
     SDL_Event event;
 
@@ -51,6 +68,8 @@ void game(SDL_Renderer *renderer) {
                     running = false;
                     break;
                 case SDL_MOUSEBUTTONDOWN:
+                    // Make logic for if the mouse has moved so far while
+                    // holding a piece it is considered dragging
                     printf("Click Detect!\n");
                     int x, y;
 
@@ -67,60 +86,73 @@ void game(SDL_Renderer *renderer) {
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
-        render_board(renderer, &resources, &board);
+        render_game_state(renderer, &data);
 
         SDL_RenderPresent(renderer);
     }
 }
 
-void screen_to_board_coords(const Board* board, int x, int y, int *new_x, int *new_y) {
-     *new_x = x / (WINDOW_WIDTH / board->width);
-     *new_y = y / (WINDOW_HEIGHT / board->height);
+void screen_to_board_coords(const Board *board, int x, int y, int *new_x,
+                            int *new_y) {
+    *new_x = x / (WINDOW_WIDTH / board->width);
+    *new_y = y / (WINDOW_HEIGHT / board->height);
+}
+
+SDL_Rect get_piece_from_texture(SDL_Texture *spritesheet, Piece piece) {
+    int cell_width;
+    int cell_height;
+
+    SDL_QueryTexture(spritesheet, NULL, NULL, &cell_width, &cell_height);
+
+    cell_width /= 6;
+    cell_height /= 2;
+
+    SDL_Rect piece_src_rect = {cell_width * piece.type,
+                               cell_height * piece.team, cell_width,
+                               cell_height};
+
+    return piece_src_rect;
 }
 
 // This needs refactored asap
-void render_board(SDL_Renderer *renderer, const Resources *resources,
-                  const Board *board) {
+void render_game_state(SDL_Renderer *renderer, const GameState *game_state) {
+    // Destructuring of the game_state struct
+    const Resources *resources = &game_state->resources;
+    const SDL_Color *white = &game_state->resources.white;
+    const SDL_Color *black = &game_state->resources.black;
+    const Board *board = &game_state->board;
+
+    const int cell_width = WINDOW_WIDTH / game_state->board.width;
+    const int cell_height = WINDOW_HEIGHT / game_state->board.height;
+
+    // Render the board
     for (int x = 0; x < board->width; x++) {
         for (int y = 0; y < board->height; y++) {
-            SDL_Color color =
-                (x + y) % 2 == 0 ? resources->white : resources->black;
+            const SDL_Color *square_color = (x + y) % 2 ? black : white;
 
-            SDL_SetTextureColorMod(resources->square, color.r, color.g,
-                                   color.b);
+            SDL_SetTextureColorMod(resources->square, square_color->r,
+                                   square_color->g, square_color->b);
 
-            int cell_width = WINDOW_WIDTH / board->width;
-            int cell_height = WINDOW_HEIGHT / board->height;
-
-            SDL_Rect square_rect = {.x = x * cell_width,
-                                    .y = y * cell_height,
-                                    .w = cell_width,
-                                    .h = cell_height};
+            SDL_Rect square_rect = {cell_width * x, cell_height * y, cell_width,
+                                    cell_height};
 
             SDL_RenderCopy(renderer, resources->square, NULL, &square_rect);
 
-            int index = x + y * board->width;
+            SDL_Rect piece_src_rect = get_piece_from_texture(
+                resources->spritesheet, board->grid[x + y * board->width]);
 
-            if (board->grid[index].type == NONE) continue;
+            SDL_Rect piece_rect = {cell_width * x, cell_height * y, cell_width,
+                                   cell_height};
 
-            int width;
-            int height;
-
-            SDL_QueryTexture(resources->spritesheet, NULL, NULL, &width,
-                             &height);
-
-            width /= 6;
-            height /= 2;
-
-            SDL_Rect s_rect = {width * board->grid[index].type,
-                               height * board->grid[index].team, width, height};
-
-            SDL_Rect rect = {x * cell_width, y * cell_height, cell_width,
-                             cell_height};
-
-            SDL_RenderCopy(renderer, resources->spritesheet, &s_rect, &rect);
+            SDL_RenderCopy(renderer, resources->spritesheet, &piece_src_rect,
+                           &piece_rect);
         }
     }
+    // Render the pieces
+    // Check if it is the selected piece
+    // If it is render at mouse position
+    // Else
+    // Render on the proper squares
 }
 
 void free_resources(Resources *resources) {
