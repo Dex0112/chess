@@ -83,12 +83,19 @@ void game(SDL_Renderer *renderer) {
             }
         }
 
+        if (SDL_GetMouseState(NULL, NULL) & SDL_BUTTON_LMASK) {
+            printf("The left mouse button is being held down\n");
+        }
+
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
         render_game_state(renderer, &data);
 
         SDL_RenderPresent(renderer);
+
+        // So it isn't running at an insane fps
+        SDL_Delay(5);
     }
 }
 
