@@ -79,6 +79,7 @@ void game(SDL_Renderer *renderer) {
                     // Make logic for if the mouse has moved so far while
                     // holding a piece it is considered dragging
                     if (state.start_drag) {
+                        printf("How did we get here?\n");
                         free(state.start_drag);
                         state.start_drag = NULL;
                     }
@@ -101,11 +102,18 @@ void game(SDL_Renderer *renderer) {
 
                     if (state.board.grid[x + y * state.board.width].type !=
                         NONE) {
-                        state.selected_piece = (Vector *) malloc(sizeof(Vector));
+                        state.selected_piece = (Vector *)malloc(sizeof(Vector));
 
                         state.selected_piece->x = x;
                         state.selected_piece->y = y;
                     }
+
+                    break;
+                case SDL_MOUSEBUTTONUP:
+                    free(state.selected_piece);
+                    state.selected_piece = NULL;
+
+                    state.is_dragging = false;
 
                     break;
             }
@@ -194,14 +202,7 @@ void render_game_state(SDL_Renderer *renderer, const GameState *game_state) {
 
             SDL_RenderCopy(renderer, resources->square, NULL, &square_rect);
 
-
-
-            SDL_Rect piece_src_rect = get_piece_from_texture(
-                resources->spritesheet, board->grid[x + y * board->width]);
-
-            SDL_Rect piece_rect = {cell_width * x, cell_height * y, cell_width,
-                                   cell_height};
-
+            // Wowy this sucks
             if (game_state->selected_piece) {
                 if (game_state->selected_piece->x == x) {
                     if (game_state->selected_piece->y == y) {
@@ -212,15 +213,39 @@ void render_game_state(SDL_Renderer *renderer, const GameState *game_state) {
                 }
             }
 
+            SDL_Rect piece_src_rect = get_piece_from_texture(
+                resources->spritesheet, board->grid[x + y * board->width]);
+
+            SDL_Rect piece_rect = {cell_width * x, cell_height * y, cell_width,
+                                   cell_height};
+
             SDL_RenderCopy(renderer, resources->spritesheet, &piece_src_rect,
                            &piece_rect);
         }
     }
-    // Render the pieces
-    // Check if it is the selected piece
-    // If it is render at mouse position
-    // Else
-    // Render on the proper squares
+
+    if (game_state->selected_piece == NULL) {
+        return;
+    }
+
+    if (!game_state->is_dragging) {
+        return;
+    }
+
+    SDL_Rect piece_src_rect = get_piece_from_texture(
+        resources->spritesheet,
+        board->grid[game_state->selected_piece->x +
+                    game_state->selected_piece->y * board->width]);
+
+    SDL_Rect piece_rect = {0, 0, cell_width, cell_height};
+
+    SDL_GetMouseState(&piece_rect.x, &piece_rect.y);
+
+    piece_rect.x -= piece_rect.w / 2;
+    piece_rect.y -= piece_rect.h / 2;
+
+    SDL_RenderCopy(renderer, resources->spritesheet, &piece_src_rect,
+                   &piece_rect);
 }
 
 void free_resources(Resources *resources) {
