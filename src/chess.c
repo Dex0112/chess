@@ -6,6 +6,31 @@
 #include <stdlib.h>
 #include <string.h>
 
+Board *create_board(int width, int height, char *fen) {
+    Board *board = (Board *)malloc(sizeof(Board));
+
+    board->width = width;
+    board->height = height;
+
+    if (!fen) {
+        board->grid = (Piece *)malloc(width * height * sizeof(Piece));
+
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < width; y++) {
+                board->grid[x + y * width] = (Piece) {
+                    .type = PIECE_NONE
+                };
+            }
+        }
+
+        return board;
+    }
+
+    load_fen(board, fen);
+
+    return board;
+}
+
 // Example fen
 // "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 void load_fen(Board *board, char *fen) {
@@ -18,14 +43,15 @@ void load_fen(Board *board, char *fen) {
 
     // Initialize the grid with empty pieces
     for (int i = 0; i < board->width * board->height; i++) {
-        grid[i].type = NONE;
-        grid[i].team = NONE;
+        grid[i].type = PIECE_NONE;
+        grid[i].team = PIECE_NONE;
     }
 
     int x = 0;
     int y = 0;
     int i = -1;
 
+    // Rewrite as a for loop with strlen
     while (fen[i] != ' ') {
         i++;
 
@@ -44,27 +70,27 @@ void load_fen(Board *board, char *fen) {
             continue;
         }
 
-        PieceType piece_type = NONE;
-        Team team = isupper(c) ? WHITE : BLACK;
+        PieceType piece_type = PIECE_NONE;
+        Team team = isupper(c) ? TEAM_WHITE : TEAM_BLACK;
 
         switch (tolower(c)) {
             case 'k':
-                piece_type = KING;
+                piece_type = PIECE_KING;
                 break;
             case 'q':
-                piece_type = QUEEN;
+                piece_type = PIECE_QUEEN;
                 break;
             case 'r':
-                piece_type = ROOK;
+                piece_type = PIECE_ROOK;
                 break;
             case 'n':
-                piece_type = KNIGHT;
+                piece_type = PIECE_KNIGHT;
                 break;
             case 'b':
-                piece_type = BISHOP;
+                piece_type = PIECE_BISHOP;
                 break;
             case 'p':
-                piece_type = PAWN;
+                piece_type = PIECE_PAWN;
                 break;
         }
 
