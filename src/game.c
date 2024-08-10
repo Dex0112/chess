@@ -308,6 +308,20 @@ void render_game_state(SDL_Renderer *renderer, const GameState *game_state) {
         }
     }
 
+    if (game_state->is_dragging) {
+        Piece piece = get_piece(board, selected_piece[0], selected_piece[1]);
+
+        SDL_Rect rect = {.w = square_width, .h = square_height};
+        SDL_Rect piece_src = get_piece_src(sprite_sheet, piece);
+        
+        SDL_GetMouseState(&rect.x, &rect.y);
+
+        rect.x -= rect.w / 2;
+        rect.y -= rect.h / 2;
+
+       SDL_RenderCopy(renderer, sprite_sheet, &piece_src, &rect);
+    }
+
     free(selected_piece);
 }
 
