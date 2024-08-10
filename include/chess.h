@@ -27,6 +27,7 @@ typedef struct {
 typedef struct {
     unsigned int width;
     unsigned int height;
+    unsigned int turn_index;
 
     Piece *grid;
 } Board;
@@ -40,6 +41,8 @@ typedef struct {
 Board *create_board(int width, int height, char *fen);
 
 void load_fen(Board *board, char *fen);
+
+Piece get_piece(const Board *, int x, int y);
 
 void free_board(Board *board);
 #endif

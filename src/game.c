@@ -66,13 +66,12 @@ void game(SDL_Renderer *renderer) {
                     break;
                 case SDL_MOUSEBUTTONDOWN:
                     if (event.button.button != SDL_BUTTON_LEFT) continue;
+                    printf("Mouse down!\n");
 
                     int x, y;
                     SDL_GetMouseState(&x, &y);
 
                     handle_click(x, y, &state);
-
-                    printf("Mouse down!\n");
 
                     break;
                 case SDL_MOUSEBUTTONUP:
@@ -80,8 +79,9 @@ void game(SDL_Renderer *renderer) {
 
                     if (!state.is_dragging) continue;
 
-
-                    // After some testing it detects mouse ups even after leaving the window so this should just work 100% of the time
+                    // After some testing it detects mouse ups even after
+                    // leaving the window so this should just work 100% of the
+                    // time
                     state.is_dragging = false;
 
                     break;
@@ -109,13 +109,14 @@ void game(SDL_Renderer *renderer) {
 }
 
 void screen_to_board_cordinates(int world_x, int world_y, int *board_x,
-                                int *board_y, const SDL_Rect *board) {
-    world_x -= board->x;
-    world_y -= board->y;
+                                int *board_y, const SDL_Rect *board_area,
+                                const Board *board) {
+    world_x -= board_area->x;
+    world_y -= board_area->y;
 
-    (*board_x) = board->w / world_x;
-    (*board_y) = board->h / world_y;
-};
+    *board_x = world_x / (board_area->w / board->width);
+    *board_y = world_y / (board_area->h / board->height);
+}
 
 Resources *load_resources(SDL_Renderer *renderer) {
     Resources *resources = (Resources *)malloc(sizeof(Resources));
@@ -150,16 +151,24 @@ ScreenLayout *create_screen_layout() {
     return layout;
 }
 
-bool is_in_bounds(const SDL_Rect *rect, int x, int y);
+bool is_in_bounds(const SDL_Rect *rect, int x, int y) {
+    x -= rect->x;
+    y -= rect->y;
+
+    if (x < 0) return false;
+    if (y < 0) return false;
+    if (x >= rect->w) return false;
+    if (y >= rect->h) return false;
+
+    return true;
+}
 
 void handle_click(int x, int y, GameState *game_state) {
-    // Invert for guard clause
-    // if the click was inside of the board
-        // if square has piece
-            // select piece
     ScreenLayout *layout = game_state->screen_layout;
 
     if (!is_in_bounds(&game_state->screen_layout->board_area, x, y)) {
+        printf("This click was not on the board\n");
+
         free(game_state->click_position);
 
         game_state->click_position = NULL;
@@ -167,17 +176,44 @@ void handle_click(int x, int y, GameState *game_state) {
         return;
     };
 
-    int board_x = x;
-    int board_y = y;
+    int board_x, board_y;
 
-    board_x -= layout->board_area.x;
-    board_y -= layout->board_area.y;
+    screen_to_board_cordinates(x, y, &board_x, &board_y, &layout->board_area,
+                               game_state->board);
 
-    board_x = layout->board_area.w / x;
-    board_y = layout->board_area.h / y;
+    printf("%d, %d\n", board_x, board_y);
 
-    // If empty square try make move 
-    // click_position needs free and set to null
+    Piece selected_piece = get_piece(game_state->board, board_x, board_y);
+
+    if (selected_piece.type == PIECE_NONE) {
+        if (game_state->click_position) {
+            printf("TODO: Implement try move\n");
+
+            // Only doing this while try move isn't impemented
+            free(game_state->click_position);
+            game_state->click_position = NULL;
+        }
+
+        printf("Not selecting any piece\n");
+
+        return;
+    }
+
+    if (selected_piece.team == game_state->board->turn_index % 2) {
+        if (!game_state->click_position) {
+            game_state->click_position = (int *)malloc(sizeof(int) * 2);
+        }
+
+        game_state->click_position[0] = x;
+        game_state->click_position[1] = y;
+
+        printf("Switching selected_piece\n");
+
+        return;
+    }
+
+    free(game_state->click_position);
+    game_state->click_position = NULL;
 }
 
 bool is_dragging(const GameState *state) {
@@ -234,9 +270,10 @@ void render_game_state(SDL_Renderer *renderer, const GameState *game_state) {
 
     if (game_state->is_dragging && game_state->click_position) {
         selected_piece = (int *)malloc(sizeof(int) * 2);
-        screen_to_board_cordinates(
-            game_state->click_position[0], game_state->click_position[1],
-            &selected_piece[0], &selected_piece[1], &layout->board_area);
+        screen_to_board_cordinates(game_state->click_position[0],
+                                   game_state->click_position[1],
+                                   &selected_piece[0], &selected_piece[1],
+                                   &layout->board_area, game_state->board);
     }
 
     for (int x = 0; x < game_state->board->width; x++) {
@@ -263,7 +300,7 @@ void render_game_state(SDL_Renderer *renderer, const GameState *game_state) {
                 if (selected_piece[0] == x && selected_piece[1] == y) continue;
             }
 
-            Piece piece = board->grid[x + y * board->width];
+            Piece piece = get_piece(board, x, y);
 
             SDL_Rect piece_src = get_piece_src(sprite_sheet, piece);
 

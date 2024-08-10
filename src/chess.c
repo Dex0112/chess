@@ -11,6 +11,7 @@ Board *create_board(int width, int height, char *fen) {
 
     board->width = width;
     board->height = height;
+    board->turn_index = 0;
 
     if (!fen) {
         board->grid = (Piece *)malloc(width * height * sizeof(Piece));
@@ -107,6 +108,12 @@ void get_coordinates(int x, int y, char *file, int *rank) {
     *(file) = 'a' + x;
 
     *(rank) = y + 1;
+}
+
+Piece get_piece(const Board *board, int x, int y) {
+    int index = x + y * board->width;
+
+    return board->grid[index];
 }
 
 void free_board(Board *board) { free(board->grid); }
