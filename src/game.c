@@ -1,3 +1,5 @@
+// time for rewrite v2
+
 #include "game.h"
 
 #include <SDL2/SDL_events.h>
@@ -7,7 +9,6 @@
 #include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_timer.h>
-#include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,34 +28,39 @@ typedef struct {
     SDL_Rect board_area;
 } ScreenLayout;
 
+typedef enum { IDLE, PIECE_SELECTED, PIECE_DRAGGING } GameState;
+
+// click_position
+// selected_cell
 typedef struct {
     Board *board;
     Resources *resources;
     ScreenLayout *screen_layout;
-    bool is_dragging;
-    // This is an array
-    int *click_position;
-} GameState;
+    GameState game_state;
+    SDL_Point selected;
+} AppState;
 
 Resources *load_resources(SDL_Renderer *);
 ScreenLayout *create_screen_layout();
 
-void handle_click(int x, int y, GameState *);
+void handle_click(int x, int y, AppState *);
 
-bool is_dragging(const GameState *);
+bool is_dragging(const AppState *);
 
-void render_game_state(SDL_Renderer *renderer, const GameState *);
-void free_game_state(GameState *state);
+void render_game_state(SDL_Renderer *renderer, const AppState *);
+void free_game_state(AppState *state);
 
 void game(SDL_Renderer *renderer) {
     SDL_Event event;
     bool running = true;
 
-    GameState state = {.board = create_board(8, 8, STARTING_FEN),
-                       .screen_layout = create_screen_layout(),
-                       .resources = load_resources(renderer),
-                       .is_dragging = false,
-                       .click_position = NULL};
+    AppState state = {
+        .board = create_board(8, 8, STARTING_FEN),
+        .screen_layout = create_screen_layout(),
+        .resources = load_resources(renderer),
+        .game_state = IDLE,
+        .selected = {0, 0},
+    };
 
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 
@@ -77,27 +83,18 @@ void game(SDL_Renderer *renderer) {
                 case SDL_MOUSEBUTTONUP:
                     printf("Mouse up!\n");
 
-                    if (!state.is_dragging) continue;
-
-                    // After some testing it detects mouse ups even after
-                    // leaving the window so this should just work 100% of the
-                    // time
-                    state.is_dragging = false;
+                    // Temp: replace with trymove logic
+                    if (state.game_state == PIECE_DRAGGING) {
+                        state.game_state = IDLE;
+                    }
 
                     break;
             }
         }
 
-        // I think I could refactor this so I am not checking moust_state
-        // multiple times per free_game_state Like only check during rendering
-        // and just while it is down do true for is_dragging then only check the
-        // threshold during rendering This actually might not work like how I
-        // want because it would snap back to the original square when you got
-        // near enough
-        if (!state.is_dragging) {
-            state.is_dragging = is_dragging(&state);
-        }
-
+        // I don't need to render every frame just when something changes and I
+        // need to implement that
+        // Ex: dragging or showing available moves
         SDL_RenderClear(renderer);
 
         render_game_state(renderer, &state);
@@ -163,15 +160,18 @@ bool is_in_bounds(const SDL_Rect *rect, int x, int y) {
     return true;
 }
 
-void handle_click(int x, int y, GameState *game_state) {
-    ScreenLayout *layout = game_state->screen_layout;
+// Refactor this
+void handle_click(int x, int y, AppState *state) {
+    ScreenLayout *layout = state->screen_layout;
 
-    if (!is_in_bounds(&game_state->screen_layout->board_area, x, y)) {
+    if (!is_in_bounds(&layout->board_area, x, y)) {
         printf("This click was not on the board\n");
 
-        free(game_state->click_position);
+        // Temporary
+        state->game_state = IDLE;
 
-        game_state->click_position = NULL;
+        // Unselect piece
+        // Like switch game_state to handle that
 
         return;
     };
@@ -179,19 +179,18 @@ void handle_click(int x, int y, GameState *game_state) {
     int board_x, board_y;
 
     screen_to_board_cordinates(x, y, &board_x, &board_y, &layout->board_area,
-                               game_state->board);
+                               state->board);
 
     printf("%d, %d\n", board_x, board_y);
 
-    Piece selected_piece = get_piece(game_state->board, board_x, board_y);
+    Piece selected_piece = get_piece(state->board, board_x, board_y);
 
     if (selected_piece.type == PIECE_NONE) {
-        if (game_state->click_position) {
+        if (state->game_state == PIECE_SELECTED) {
             printf("TODO: Implement try move\n");
 
             // Only doing this while try move isn't impemented
-            free(game_state->click_position);
-            game_state->click_position = NULL;
+            state->game_state = IDLE;
         }
 
         printf("Not selecting any piece\n");
@@ -199,52 +198,31 @@ void handle_click(int x, int y, GameState *game_state) {
         return;
     }
 
-    if (selected_piece.team == game_state->board->turn_index % 2) {
-        if (!game_state->click_position) {
-            game_state->click_position = (int *)malloc(sizeof(int) * 2);
+    if (selected_piece.team == state->board->turn_index % 2) {
+        if (state->game_state == IDLE) {
+            state->game_state = PIECE_DRAGGING;
         }
 
-        game_state->click_position[0] = x;
-        game_state->click_position[1] = y;
-
-        printf("Switching selected_piece\n");
+        state->selected.x = board_x;
+        state->selected.y = board_y;
 
         return;
     }
 
-    free(game_state->click_position);
-    game_state->click_position = NULL;
-}
-
-bool is_dragging(const GameState *state) {
-    int mouse_position[2];
-
-    int mouse_state = SDL_GetMouseState(&mouse_position[0], &mouse_position[1]);
-
-    if (!(mouse_state & SDL_BUTTON_LMASK)) return false;
-
-    int *click_position = state->click_position;
-
-    if (click_position == NULL) return false;
-
-    const int THRESHOLD = 15;
-
-    int x_dif = click_position[0] - mouse_position[0];
-
-    int y_dif = click_position[1] - mouse_position[1];
-
-    float distance = sqrtf(x_dif * x_dif + y_dif * y_dif);
-
-    return distance >= THRESHOLD;
+    // I don't know what even the state would be to end up here
+    printf("Why am I at the end of handle_click\n");
 }
 
 SDL_Rect get_piece_src(SDL_Texture *spritesheet, Piece piece) {
+    const int PIECES = 6;
+    const int TEAMS = 2;
+
     int width, height;
 
     SDL_QueryTexture(spritesheet, NULL, NULL, &width, &height);
 
-    width /= 6;
-    height /= 2;
+    width /= PIECES;
+    height /= TEAMS;
 
     SDL_Rect src_rect = {.x = width * piece.type,
                          .y = height * piece.team,
@@ -257,33 +235,23 @@ SDL_Rect get_piece_src(SDL_Texture *spritesheet, Piece piece) {
 // TODO: Finish the rendering of the selected piece
 // right now it either isn't working or I'm not selecting a piece which it is
 // probably the second one
-void render_game_state(SDL_Renderer *renderer, const GameState *game_state) {
-    Board *board = game_state->board;
-    Resources *resources = game_state->resources;
+void render_game_state(SDL_Renderer *renderer, const AppState *state) {
+    Board *board = state->board;
+    Resources *resources = state->resources;
     SDL_Texture *sprite_sheet = resources->sprite_sheet;
-    ScreenLayout *layout = game_state->screen_layout;
+    ScreenLayout *layout = state->screen_layout;
 
     const int square_width = layout->board_area.w / board->width;
     const int square_height = layout->board_area.h / board->height;
 
-    int *selected_piece = NULL;
-
-    if (game_state->is_dragging && game_state->click_position) {
-        selected_piece = (int *)malloc(sizeof(int) * 2);
-        screen_to_board_cordinates(game_state->click_position[0],
-                                   game_state->click_position[1],
-                                   &selected_piece[0], &selected_piece[1],
-                                   &layout->board_area, game_state->board);
-    }
-
-    for (int x = 0; x < game_state->board->width; x++) {
-        for (int y = 0; y < game_state->board->height; y++) {
+    for (int x = 0; x < state->board->width; x++) {
+        for (int y = 0; y < state->board->height; y++) {
             SDL_Color color;
 
             if ((x + y) % 2 == 0) {
-                color = game_state->resources->white;
+                color = state->resources->white;
             } else {
-                color = game_state->resources->black;
+                color = state->resources->black;
             }
 
             SDL_SetTextureColorMod(resources->square, color.r, color.g,
@@ -296,8 +264,8 @@ void render_game_state(SDL_Renderer *renderer, const GameState *game_state) {
 
             SDL_RenderCopy(renderer, resources->square, NULL, &rect);
 
-            if (selected_piece) {
-                if (selected_piece[0] == x && selected_piece[1] == y) continue;
+            if (state->game_state == PIECE_DRAGGING) {
+                if (x == state->selected.x && y == state->selected.y) continue;
             }
 
             Piece piece = get_piece(board, x, y);
@@ -308,21 +276,18 @@ void render_game_state(SDL_Renderer *renderer, const GameState *game_state) {
         }
     }
 
-    if (game_state->is_dragging) {
-        Piece piece = get_piece(board, selected_piece[0], selected_piece[1]);
+    if (state->game_state != PIECE_DRAGGING) return;
+    Piece piece = get_piece(board, state->selected.x, state->selected.y);
 
-        SDL_Rect rect = {.w = square_width, .h = square_height};
-        SDL_Rect piece_src = get_piece_src(sprite_sheet, piece);
-        
-        SDL_GetMouseState(&rect.x, &rect.y);
+    SDL_Rect rect = {.w = square_width, .h = square_height};
+    SDL_Rect piece_src = get_piece_src(sprite_sheet, piece);
 
-        rect.x -= rect.w / 2;
-        rect.y -= rect.h / 2;
+    SDL_GetMouseState(&rect.x, &rect.y);
 
-       SDL_RenderCopy(renderer, sprite_sheet, &piece_src, &rect);
-    }
+    rect.x -= rect.w / 2;
+    rect.y -= rect.h / 2;
 
-    free(selected_piece);
+    SDL_RenderCopy(renderer, sprite_sheet, &piece_src, &rect);
 }
 
-void free_game_state(GameState *state) {}
+void free_game_state(AppState *state) {}
