@@ -22,28 +22,34 @@ typedef struct {
     SDL_Texture *square;
     SDL_Color white;
     SDL_Color black;
+    SDL_Color selected;
 } Resources;
 
 typedef struct {
     SDL_Rect board_area;
 } ScreenLayout;
 
-typedef enum { IDLE, PIECE_SELECTED, PIECE_DRAGGING } GameState;
+typedef enum {
+    STATE_IDLE,
+    STATE_PIECE_SELECTED,
+    STATE_DRAGGING_PIECE
+} GameState;
 
-// click_position
-// selected_cell
+// I screen_layout and resources should be const
 typedef struct {
     Board *board;
-    Resources *resources;
-    ScreenLayout *screen_layout;
+    Resources resources;
+    ScreenLayout screen_layout;
     GameState game_state;
     SDL_Point selected;
 } AppState;
 
-Resources *load_resources(SDL_Renderer *);
-ScreenLayout *create_screen_layout();
+// Should these return pointers?
+// They should really just return the struct
+Resources load_resources(SDL_Renderer *);
+ScreenLayout create_screen_layout();
 
-void handle_click(int x, int y, AppState *);
+void handle_click(SDL_Point click, AppState *);
 
 bool is_dragging(const AppState *);
 
@@ -58,8 +64,8 @@ void game(SDL_Renderer *renderer) {
         .board = create_board(8, 8, STARTING_FEN),
         .screen_layout = create_screen_layout(),
         .resources = load_resources(renderer),
-        .game_state = IDLE,
-        .selected = {0, 0},
+        .game_state = STATE_IDLE,
+        .selected = {-1, -1},
     };
 
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
@@ -74,18 +80,18 @@ void game(SDL_Renderer *renderer) {
                     if (event.button.button != SDL_BUTTON_LEFT) continue;
                     printf("Mouse down!\n");
 
-                    int x, y;
-                    SDL_GetMouseState(&x, &y);
+                    SDL_Point click;
+                    SDL_GetMouseState(&click.x, &click.y);
 
-                    handle_click(x, y, &state);
+                    handle_click(click, &state);
 
                     break;
                 case SDL_MOUSEBUTTONUP:
                     printf("Mouse up!\n");
 
                     // Temp: replace with trymove logic
-                    if (state.game_state == PIECE_DRAGGING) {
-                        state.game_state = IDLE;
+                    if (state.game_state == STATE_DRAGGING_PIECE) {
+                        state.game_state = STATE_PIECE_SELECTED;
                     }
 
                     break;
@@ -105,45 +111,58 @@ void game(SDL_Renderer *renderer) {
     free_game_state(&state);
 }
 
-void screen_to_board_cordinates(int world_x, int world_y, int *board_x,
-                                int *board_y, const SDL_Rect *board_area,
-                                const Board *board) {
-    world_x -= board_area->x;
-    world_y -= board_area->y;
+SDL_Point screen_to_board_cordinates(SDL_Point world, const AppState *state) {
+    const SDL_Rect *board_area = &state->screen_layout.board_area;
 
-    *board_x = world_x / (board_area->w / board->width);
-    *board_y = world_y / (board_area->h / board->height);
+    world.x -= board_area->x;
+    world.y -= board_area->y;
+
+    SDL_Point board_position;
+
+    board_position.x = world.x;
+    board_position.y = world.y;
+    board_position.x /= (board_area->w / state->board->width);
+    board_position.y /= (board_area->h / state->board->height);
+
+    return board_position;
 }
 
-Resources *load_resources(SDL_Renderer *renderer) {
-    Resources *resources = (Resources *)malloc(sizeof(Resources));
-    resources->sprite_sheet =
+Resources load_resources(SDL_Renderer *renderer) {
+    Resources resources = {};
+    resources.sprite_sheet =
         IMG_LoadTexture(renderer, get_path("../gfx/Pieces.png"));
-    resources->square =
+    resources.square =
         IMG_LoadTexture(renderer, get_path("../gfx/Square.png"));
 
-    resources->white = (SDL_Color){
+    resources.white = (SDL_Color){
         .r = 255,
         .g = 255,
         .b = 255,
     };
 
-    resources->black = (SDL_Color){
+    resources.black = (SDL_Color){
         .r = 50,
         .g = 50,
         .b = 50,
+    };
+    // Make this like yellow or something
+
+    resources.selected = (SDL_Color){
+        .r = 255,
+        .g = 246,
+        .b = 163,
     };
 
     return resources;
 }
 
-ScreenLayout *create_screen_layout() {
-    ScreenLayout *layout = (ScreenLayout *)malloc(sizeof(ScreenLayout));
+ScreenLayout create_screen_layout() {
+    ScreenLayout layout;
 
-    layout->board_area.w = WINDOW_WIDTH * 0.75;
-    layout->board_area.h = layout->board_area.w;
-    layout->board_area.x = 15;
-    layout->board_area.y = WINDOW_HEIGHT / 2 - layout->board_area.h / 2;
+    layout.board_area.w = WINDOW_WIDTH * 0.75;
+    layout.board_area.h = layout.board_area.w;
+    layout.board_area.x = 15;
+    layout.board_area.y = WINDOW_HEIGHT / 2 - layout.board_area.h / 2;
 
     return layout;
 }
@@ -161,56 +180,41 @@ bool is_in_bounds(const SDL_Rect *rect, int x, int y) {
 }
 
 // Refactor this
-void handle_click(int x, int y, AppState *state) {
-    ScreenLayout *layout = state->screen_layout;
+void handle_click(SDL_Point click, AppState *state) {
+    const ScreenLayout *layout = &state->screen_layout;
 
-    if (!is_in_bounds(&layout->board_area, x, y)) {
-        printf("This click was not on the board\n");
-
-        // Temporary
-        state->game_state = IDLE;
-
-        // Unselect piece
-        // Like switch game_state to handle that
-
-        return;
-    };
-
-    int board_x, board_y;
-
-    screen_to_board_cordinates(x, y, &board_x, &board_y, &layout->board_area,
-                               state->board);
-
-    printf("%d, %d\n", board_x, board_y);
-
-    Piece selected_piece = get_piece(state->board, board_x, board_y);
-
-    if (selected_piece.type == PIECE_NONE) {
-        if (state->game_state == PIECE_SELECTED) {
-            printf("TODO: Implement try move\n");
-
-            // Only doing this while try move isn't impemented
-            state->game_state = IDLE;
-        }
-
-        printf("Not selecting any piece\n");
+    if (!is_in_bounds(&layout->board_area, click.x, click.y)) {
+        state->game_state = STATE_IDLE;
 
         return;
     }
 
-    if (selected_piece.team == state->board->turn_index % 2) {
-        if (state->game_state == IDLE) {
-            state->game_state = PIECE_DRAGGING;
-        }
+    SDL_Point selected = screen_to_board_cordinates(click, state);
 
-        state->selected.x = board_x;
-        state->selected.y = board_y;
+    if (state->game_state == STATE_PIECE_SELECTED) {
+        if (state->selected.x == selected.x &&
+            state->selected.y == selected.y) {
+            state->game_state = STATE_IDLE;
+
+            return;
+        }
+    }
+
+    Piece piece = get_piece(state->board, selected.x, selected.y);
+
+    if (piece.team == state->board->turn_index % 2) {
+        state->game_state = STATE_DRAGGING_PIECE;
+        state->selected = selected;
 
         return;
     }
 
-    // I don't know what even the state would be to end up here
-    printf("Why am I at the end of handle_click\n");
+    if (state->game_state == STATE_PIECE_SELECTED) {
+        // Trying to move
+        printf("No move logic has been implemented yet!\n");
+    }
+
+    state->game_state = STATE_IDLE;
 }
 
 SDL_Rect get_piece_src(SDL_Texture *spritesheet, Piece piece) {
@@ -224,22 +228,21 @@ SDL_Rect get_piece_src(SDL_Texture *spritesheet, Piece piece) {
     width /= PIECES;
     height /= TEAMS;
 
-    SDL_Rect src_rect = {.x = width * piece.type,
-                         .y = height * piece.team,
-                         .w = width,
-                         .h = height};
+    SDL_Rect src_rect = {
+        .x = width * piece.type,
+        .y = height * piece.team,
+        .w = width,
+        .h = height,
+    };
 
     return src_rect;
 }
 
-// TODO: Finish the rendering of the selected piece
-// right now it either isn't working or I'm not selecting a piece which it is
-// probably the second one
 void render_game_state(SDL_Renderer *renderer, const AppState *state) {
     Board *board = state->board;
-    Resources *resources = state->resources;
+    const Resources *resources = &state->resources;
     SDL_Texture *sprite_sheet = resources->sprite_sheet;
-    ScreenLayout *layout = state->screen_layout;
+    const ScreenLayout *layout = &state->screen_layout;
 
     const int square_width = layout->board_area.w / board->width;
     const int square_height = layout->board_area.h / board->height;
@@ -248,24 +251,38 @@ void render_game_state(SDL_Renderer *renderer, const AppState *state) {
         for (int y = 0; y < state->board->height; y++) {
             SDL_Color color;
 
-            if ((x + y) % 2 == 0) {
-                color = state->resources->white;
+            // This might be too ambiguous
+            bool selected_square = state->game_state != STATE_IDLE;
+
+            if (selected_square) {
+                selected_square =
+                    x == state->selected.x && y == state->selected.y;
+            }
+
+            if (selected_square) {
+                color = resources->selected;
             } else {
-                color = state->resources->black;
+                if ((x + y) % 2 == 0) {
+                    color = state->resources.white;
+                } else {
+                    color = state->resources.black;
+                }
             }
 
             SDL_SetTextureColorMod(resources->square, color.r, color.g,
                                    color.b);
 
-            SDL_Rect rect = {.x = layout->board_area.x + square_width * x,
-                             .y = layout->board_area.y + square_width * y,
-                             .w = square_width,
-                             .h = square_height};
+            SDL_Rect rect = {
+                .x = layout->board_area.x + square_width * x,
+                .y = layout->board_area.y + square_width * y,
+                .w = square_width,
+                .h = square_height,
+            };
 
             SDL_RenderCopy(renderer, resources->square, NULL, &rect);
 
-            if (state->game_state == PIECE_DRAGGING) {
-                if (x == state->selected.x && y == state->selected.y) continue;
+            if (state->game_state == STATE_DRAGGING_PIECE && selected_square) {
+                continue;
             }
 
             Piece piece = get_piece(board, x, y);
@@ -276,7 +293,8 @@ void render_game_state(SDL_Renderer *renderer, const AppState *state) {
         }
     }
 
-    if (state->game_state != PIECE_DRAGGING) return;
+    if (state->game_state != STATE_DRAGGING_PIECE) return;
+
     Piece piece = get_piece(board, state->selected.x, state->selected.y);
 
     SDL_Rect rect = {.w = square_width, .h = square_height};
@@ -290,4 +308,5 @@ void render_game_state(SDL_Renderer *renderer, const AppState *state) {
     SDL_RenderCopy(renderer, sprite_sheet, &piece_src, &rect);
 }
 
+// TODO:
 void free_game_state(AppState *state) {}
