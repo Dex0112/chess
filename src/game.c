@@ -14,6 +14,7 @@
 #include <stdlib.h>
 
 #include "chess.h"
+#include "clock.h"
 #include "constants.h"
 #include "path.h"
 
@@ -37,9 +38,10 @@ typedef enum {
 
 // I screen_layout and resources should be const
 typedef struct {
+    Clock *clock;
     Board *board;
-    Resources resources;
-    ScreenLayout screen_layout;
+    const Resources resources;
+    const ScreenLayout screen_layout;
     GameState game_state;
     SDL_Point selected;
 } AppState;
@@ -66,7 +68,10 @@ void game(SDL_Renderer *renderer) {
         .resources = load_resources(renderer),
         .game_state = STATE_IDLE,
         .selected = {-1, -1},
+        .clock = (Clock *)malloc(sizeof(Clock)),
     };
+
+    start_clock(state.clock, 15);
 
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 
@@ -96,6 +101,15 @@ void game(SDL_Renderer *renderer) {
 
                     break;
             }
+        }
+
+        clock_update(state.clock);
+
+        if (*state.clock->current != 0) printf("%.2f\n", *state.clock->current);
+
+        if (*state.clock->current == 0) {
+            printf("Toggling clock!\n");
+            clock_toggle(state.clock);
         }
 
         // I don't need to render every frame just when something changes and I
@@ -131,8 +145,7 @@ Resources load_resources(SDL_Renderer *renderer) {
     Resources resources = {};
     resources.sprite_sheet =
         IMG_LoadTexture(renderer, get_path("../gfx/Pieces.png"));
-    resources.square =
-        IMG_LoadTexture(renderer, get_path("../gfx/Square.png"));
+    resources.square = IMG_LoadTexture(renderer, get_path("../gfx/Square.png"));
 
     resources.white = (SDL_Color){
         .r = 255,
@@ -308,5 +321,13 @@ void render_game_state(SDL_Renderer *renderer, const AppState *state) {
     SDL_RenderCopy(renderer, sprite_sheet, &piece_src, &rect);
 }
 
+void free_resources(Resources resources) {
+    SDL_DestroyTexture(resources.sprite_sheet);
+    SDL_DestroyTexture(resources.square);
+}
+
 // TODO:
-void free_game_state(AppState *state) {}
+void free_game_state(AppState *state) {
+    free_board(state->board);
+    free_resources(state->resources);
+}
