@@ -1,9 +1,11 @@
-#include <stdlib.h>
-#include <time.h>
 #include "clock.h"
 
+#include <SDL2/SDL_timer.h>
+#include <stdlib.h>
+
 void start_clock(Clock *chess_clock, int timer_seconds) {
-    chess_clock->last_tick = clock();
+    chess_clock->last_tick = SDL_GetTicks();
+
     chess_clock->current = (double *)malloc(sizeof(double));
     chess_clock->inactive = (double *)malloc(sizeof(double));
 
@@ -12,9 +14,13 @@ void start_clock(Clock *chess_clock, int timer_seconds) {
 }
 
 void clock_update(Clock *chess_clock) {
-    clock_t time = clock();
+    const unsigned int MILLISECONDS_TO_SECONDS = 1000;
 
-    double delta = (double)(time - chess_clock->last_tick) / CLOCKS_PER_SEC;
+    unsigned int time = SDL_GetTicks();
+
+    double delta = (double)(time - chess_clock->last_tick);
+
+    delta /= MILLISECONDS_TO_SECONDS;
 
     *chess_clock->current -= delta;
 

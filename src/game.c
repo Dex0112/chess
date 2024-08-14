@@ -4,6 +4,7 @@
 
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_image.h>
+#include <SDL2/SDL_keycode.h>
 #include <SDL2/SDL_mouse.h>
 #include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_rect.h>
@@ -75,11 +76,20 @@ void game(SDL_Renderer *renderer) {
 
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 
+    int frame_count = 0;
+
     while (running) {
+        clock_update(state.clock);
+
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
                 case SDL_QUIT:
                     running = false;
+                    break;
+                case SDL_KEYDOWN:
+                    if (event.key.keysym.sym == SDLK_SPACE) {
+                        clock_toggle(state.clock);
+                    }
                     break;
                 case SDL_MOUSEBUTTONDOWN:
                     if (event.button.button != SDL_BUTTON_LEFT) continue;
@@ -103,14 +113,7 @@ void game(SDL_Renderer *renderer) {
             }
         }
 
-        clock_update(state.clock);
-
         if (*state.clock->current != 0) printf("%.2f\n", *state.clock->current);
-
-        if (*state.clock->current == 0) {
-            printf("Toggling clock!\n");
-            clock_toggle(state.clock);
-        }
 
         // I don't need to render every frame just when something changes and I
         // need to implement that

@@ -2,13 +2,11 @@
 
 #define CLOCK
 
-#include <time.h>
-
 typedef struct {
     double *current;
     double *inactive;
 
-    clock_t last_tick;
+    unsigned int last_tick;
 } Clock;
 
 void start_clock(Clock *chess_clock, int timer_seconds);
