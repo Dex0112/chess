@@ -11,7 +11,7 @@ Board *create_board(int width, int height, char *fen) {
 
     board->width = width;
     board->height = height;
-    board->turn_index = 0;
+    board->move_index = 0;
 
     if (!fen) {
         board->grid = (Piece *)malloc(width * height * sizeof(Piece));

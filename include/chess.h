@@ -27,7 +27,8 @@ typedef struct {
 typedef struct {
     unsigned int width;
     unsigned int height;
-    unsigned int turn_index;
+    // Half turns
+    unsigned int move_index;
 
     Piece *grid;
 } Board;
