@@ -37,6 +37,10 @@ typedef struct {
 
 typedef struct {
     SDL_Rect board;
+    // Refactor to have a clock x width and height
+    // then a white y and a black y
+    // To even further reduce code duplication
+    // I belive SDL_Rect to be the incorrect abstraction
     SDL_Rect white_clock;
     SDL_Rect black_clock;
 } ScreenLayout;
