@@ -1,5 +1,3 @@
-// time for rewrite v2
-
 #include "game.h"
 
 #include <SDL2/SDL_events.h>
@@ -389,10 +387,16 @@ void render_game_state(SDL_Renderer *renderer, const AppState *state) {
 
     SDL_QueryTexture(white_clock_text, NULL, NULL, &text_rect.w, &text_rect.h);
 
+    text_rect.x += (layout->white_clock.w - text_rect.w) / 2;
+    text_rect.y += (layout->white_clock.h - text_rect.h) / 2;
+
     SDL_RenderCopy(renderer, white_clock_text, NULL, &text_rect);
 
+    text_rect = layout->black_clock;
     SDL_QueryTexture(black_clock_text, NULL, NULL, &text_rect.w, &text_rect.h);
-    text_rect.y = layout->black_clock.y;
+
+    text_rect.x += (layout->black_clock.w - text_rect.w) / 2;
+    text_rect.y += (layout->black_clock.h - text_rect.h) / 2;
 
     SDL_RenderCopy(renderer, black_clock_text, NULL, &text_rect);
 
