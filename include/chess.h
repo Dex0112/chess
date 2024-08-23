@@ -18,9 +18,14 @@ typedef enum {
     PIECE_PAWN = 5,
 } PieceType;
 
+// For when I rewrite to use bitwise operations to preserve memory and for
+// learning typedef int Piece;
 typedef struct {
     PieceType type;
     Team team;
+    // enum for
+    // int piece_info
+    // Ex: pin diagonal_l/r vert hortizontal team has_moved type
     // bool for has moved
 } Piece;
 
