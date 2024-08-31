@@ -16,16 +16,42 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "board_context.h"
 #include "chess.h"
 #include "clock.h"
-#include "render.h"
+#include "constants.h"
 
-// I screen_layout and resources should be const
+// Put this in a reasonable spot later
+// I also am conflicted on whether to keep this as a struct or not
+ScreenLayout create_screen_layout() {
+    ScreenLayout layout;
+
+    const int VERTICAL_CLOCK_PADDING = 16;
+
+    layout.board.w = WINDOW_WIDTH * 0.75;
+    layout.board.h = layout.board.w;
+    layout.board.x = 15;
+    layout.board.y = WINDOW_HEIGHT / 2 - layout.board.h / 2;
+
+    layout.white_clock.w = 120;
+    layout.white_clock.h = 50;
+    layout.white_clock.x = layout.board.x + layout.board.w;
+    layout.white_clock.x +=
+        (WINDOW_WIDTH - layout.board.w - layout.board.x) / 2;
+    layout.white_clock.x -= layout.white_clock.w / 2;
+    layout.white_clock.y = WINDOW_HEIGHT / 2;
+
+    layout.black_clock = layout.white_clock;
+
+    layout.white_clock.y += VERTICAL_CLOCK_PADDING / 2;
+
+    layout.black_clock.y -= layout.black_clock.h;
+    layout.black_clock.y -= VERTICAL_CLOCK_PADDING / 2;
+
+    return layout;
+}
 
 // void handle_click(SDL_Point click, AppState *);
-
-// Not implemented
-// bool is_dragging(const AppState *);
 
 void game(SDL_Renderer *renderer) {
     TTF_Init();
@@ -39,6 +65,17 @@ void game(SDL_Renderer *renderer) {
         .selected = {-1, -1},
         .clock = (Clock *)malloc(sizeof(Clock)),
     };
+
+    BoardContext ctx;
+
+    set_board_context_flag(&ctx, RECOMPUTE_ALL);
+    set_board_context_flag(&ctx, RECOMPUTE_PIECE_RECTS);
+    set_board_context_flag(&ctx, RECOMPUTE_SQUARE_COLORS);
+    set_board_context_flag(&ctx, RECOMPUTE_SELECTED_PIECE);
+
+    process_board_context(state.board, &ctx);
+
+    return;
 
     start_clock(state.clock, 15);
 
@@ -54,6 +91,7 @@ void game(SDL_Renderer *renderer) {
                 case SDL_QUIT:
                     running = false;
                     break;
+                // This is just for testing
                 case SDL_KEYDOWN:
                     if (event.key.keysym.sym == SDLK_SPACE) {
                         clock_toggle(state.clock);
@@ -93,11 +131,9 @@ void game(SDL_Renderer *renderer) {
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
-        if (state.game_state == STATE_DRAGGING_PIECE) {
-            render_board(renderer, state.board, &state.selected);
-        } else {
-            render_board(renderer, state.board, NULL);
-        }
+        // Preprocess board
+        // check if there is any reason to actually render anything
+        // Render board
 
         SDL_RenderPresent(renderer);
 
